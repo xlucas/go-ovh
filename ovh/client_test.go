@@ -1,7 +1,10 @@
 package ovh_test
 
-import "github.com/xlucas/go-ovh/ovh"
-import "testing"
+import (
+	"testing"
+
+	"github.com/xlucas/go-ovh/ovh"
+)
 
 func TestPollTimeshiftCaOvhCom(t *testing.T) {
 	c := ovh.NewClient(ovh.ENDPOINT_CA_OVHCOM, "", "", "")
