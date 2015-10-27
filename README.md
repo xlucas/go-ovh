@@ -1,6 +1,9 @@
 # go-ovh
 A simple helper library around the OVH API for golang developers.
 
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/xlucas/go-ovh/ovh)
+
+
 ## Requirements
 Firsteval, you will need to generate the application credentials in order to use the API. Check [the official guide here](https://api.ovh.com/g934.test) for more details.
 
