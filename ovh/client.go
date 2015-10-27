@@ -8,9 +8,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 )
-
-import "time"
 
 // OVH endpoints list
 const (
