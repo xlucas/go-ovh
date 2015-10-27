@@ -45,6 +45,11 @@ func NewClient(endpoint, ak, as, ck string) *Client {
 	}
 }
 
+// PollTimeshift calculates the difference between
+// current system time and remote time through a call
+// to API. It may be useful to call this function
+// to avoid the signature to be rejected due to
+// timeshifting or network delay.
 func (c *Client) PollTimeshift() error {
 	sysTime := time.Now()
 	resp, err := http.Get(c.Endpoint + "/auth/time")
