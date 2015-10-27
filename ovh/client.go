@@ -45,32 +45,29 @@ func NewClient(endpoint, ak, as, ck string) *Client {
 }
 
 // PollTimeshift calculates the difference between
-// current system time and remote time through a call
-// to API. It may be useful to call this function
+// local and remote system time through a call to
+// the API. It may be useful to call this function
 // to avoid the signature to be rejected due to
-// timeshifting or network delay.
+// timeshift or network delay.
 func (c *Client) PollTimeshift() error {
 	sysTime := time.Now()
 	resp, err := http.Get(c.Endpoint + "/auth/time")
 	if err != nil {
 		return err
 	}
-
 	outPayload, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-
 	apiTime, err := strconv.ParseInt(string(outPayload), 10, 64)
 	if err != nil {
 		return err
 	}
-
 	c.TimeShift = time.Unix(apiTime, 0).Sub(sysTime)
 	return err
 }
 
-// Call is a helper for OVH API interaction
+// Call is a helper for OVH API interactions.
 func (c *Client) Call(method, path string, in map[string]interface{}) (map[string]interface{}, error) {
 	var inBytes, outBytes []byte
 	var err error
@@ -82,7 +79,7 @@ func (c *Client) Call(method, path string, in map[string]interface{}) (map[strin
 		return nil, err
 	}
 
-	// Compute the signature value
+	// Compute signature value
 	hasher := sha1.New()
 	timestamp := strconv.FormatInt(time.Now().Add(c.TimeShift).Unix(), 10)
 	url := c.Endpoint + path
@@ -117,7 +114,7 @@ func (c *Client) Call(method, path string, in map[string]interface{}) (map[strin
 	if err != nil {
 		return nil, err
 	}
+	
 	json.Unmarshal(outBytes, &out)
-
 	return out, err
 }
