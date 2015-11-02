@@ -9,9 +9,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 )
-
-import "time"
 
 // OVH endpoints list
 const (
@@ -82,27 +81,24 @@ func sendRequest(appKey, consumerKey, signature string, timestamp int64, method,
 }
 
 // PollTimeshift calculates the difference between
-// current system time and remote time through a call
-// to API. It may be useful to call this function
+// local and remote system time through a call to
+// the API. It may be useful to call this function
 // to avoid the signature to be rejected due to
-// timeshifting or network delay.
+// timeshift or network delay.
 func (c *Client) PollTimeshift() error {
 	sysTime := time.Now()
 	resp, err := http.Get(c.Endpoint + "/auth/time")
 	if err != nil {
 		return err
 	}
-
 	outPayload, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-
 	apiTime, err := strconv.ParseInt(string(outPayload), 10, 64)
 	if err != nil {
 		return err
 	}
-
 	c.TimeShift = time.Unix(apiTime, 0).Sub(sysTime)
 	return err
 }
@@ -121,7 +117,6 @@ func (c *Client) CallSimple(method, path string, in map[string]interface{}) (map
 
 	url := c.Endpoint + path
 	timestamp := time.Now().Add(c.TimeShift).Unix()
-	// Compute the signature value
 	signature := computeSignature(c.AppSecret, c.ConsumerKey, method, url, inBytes, timestamp)
 
 	outBytes, err = sendRequest(c.AppSecret, c.ConsumerKey, signature, timestamp, method, url, inBytes)
@@ -147,7 +142,6 @@ func (c *Client) Call(method, path string, in interface{}) (interface{}, error) 
 
 	url := c.Endpoint + path
 	timestamp := time.Now().Add(c.TimeShift).Unix()
-	// Compute the signature value
 	signature := computeSignature(c.AppSecret, c.ConsumerKey, method, url, inBytes, timestamp)
 
 	outBytes, err = sendRequest(c.AppSecret, c.ConsumerKey, signature, timestamp, method, url, inBytes)
