@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -45,6 +46,41 @@ func NewClient(endpoint, ak, as, ck string) *Client {
 	}
 }
 
+func computeSignature(appSecret, consumerKey, method, url string, body []byte, timestamp int64) string {
+	hasher := sha1.New()
+	pattern := fmt.Sprintf("%s+%s+%s+%s+%x+%d",
+		appSecret,
+		consumerKey,
+		method,
+		url,
+		body,
+		timestamp)
+	hasher.Write([]byte(pattern))
+	return fmt.Sprintf("$1$%x", hasher.Sum(nil))
+}
+
+func sendRequest(appKey, consumerKey, signature string, timestamp int64, method, url string, body []byte) ([]byte, error) {
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("X-Ovh-Application", appKey)
+	req.Header.Add("X-Ovh-Consumer", consumerKey)
+	req.Header.Add("X-Ovh-Signature", signature)
+	req.Header.Add("X-Ovh-Timestamp", fmt.Sprintf("%d", timestamp))
+
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(req)
+	if resp.StatusCode < 300 {
+		return nil, errors.New(fmt.Sprintf("Unexpected HTTP return code: %s." + resp.Status))
+	}
+
+	outBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return outBytes, err
+}
+
 // PollTimeshift calculates the difference between
 // current system time and remote time through a call
 // to API. It may be useful to call this function
@@ -71,8 +107,8 @@ func (c *Client) PollTimeshift() error {
 	return err
 }
 
-// Call is a helper for OVH API interaction
-func (c *Client) Call(method, path string, in map[string]interface{}) (map[string]interface{}, error) {
+// CallSimple is a helper for OVH API interaction that returns and use string hashmaps
+func (c *Client) CallSimple(method, path string, in map[string]interface{}) (map[string]interface{}, error) {
 	var inBytes, outBytes []byte
 	var err error
 	var out map[string]interface{}
@@ -83,42 +119,42 @@ func (c *Client) Call(method, path string, in map[string]interface{}) (map[strin
 		return nil, err
 	}
 
-	// Compute the signature value
-	hasher := sha1.New()
-	timestamp := strconv.FormatInt(time.Now().Add(c.TimeShift).Unix(), 10)
 	url := c.Endpoint + path
-	pattern := fmt.Sprintf("%s+%s+%s+%s+%x+%s",
-		c.AppSecret,
-		c.ConsumerKey,
-		method,
-		url,
-		inBytes,
-		timestamp,
-	)
-	hasher.Write([]byte(pattern))
-	signature := fmt.Sprintf("$1$%x", hasher.Sum(nil))
+	timestamp := time.Now().Add(c.TimeShift).Unix()
+	// Compute the signature value
+	signature := computeSignature(c.AppSecret, c.ConsumerKey, method, url, inBytes, timestamp)
 
-	// Build the request
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(inBytes))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Add("X-Ovh-Application", c.AppKey)
-	req.Header.Add("X-Ovh-Consumer", c.ConsumerKey)
-	req.Header.Add("X-Ovh-Signature", signature)
-	req.Header.Add("X-Ovh-Timestamp", timestamp)
-
-	// Interact with the endpoint
-	httpClient := &http.Client{}
-	resp, err := httpClient.Do(req)
+	outBytes, err = sendRequest(c.AppSecret, c.ConsumerKey, signature, timestamp, method, url, inBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse the result
-	outBytes, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
 	json.Unmarshal(outBytes, &out)
+	return out, err
+}
 
+// Call is a helper for OVH API interaction that returns and use interfaces
+func (c *Client) Call(method, path string, in interface{}) (interface{}, error) {
+	var inBytes, outBytes []byte
+	var err error
+	var out interface{}
+	if in != nil {
+		inBytes, err = json.Marshal(in)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	url := c.Endpoint + path
+	timestamp := time.Now().Add(c.TimeShift).Unix()
+	// Compute the signature value
+	signature := computeSignature(c.AppSecret, c.ConsumerKey, method, url, inBytes, timestamp)
+
+	outBytes, err = sendRequest(c.AppSecret, c.ConsumerKey, signature, timestamp, method, url, inBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	json.Unmarshal(outBytes, &out)
 	return out, err
 }
