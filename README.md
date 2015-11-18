@@ -69,13 +69,19 @@ out = MyRequestStruct {
     MyField2: "bar",
 }
 
-var in MyResponseStruct
+var data MyResponseStruct
+var in interface{}
 
 if in, err = c.Call("POST", "/cloud/createProject", out); err != nil {
     log.Fatal("Failed to call the API, reason : ", err)
 }
 
+data, ok := in.(MyResponseStruct)
+if !ok {
+    log.Fatal("Type assertion failed fo MyResponseStruct")
+}
+
 // Access the response struct
-fmt.Printf("Object id is %d", in.MyIdField)
+fmt.Printf("Object id is %d", data.MyIdField)
 ...
 ```
