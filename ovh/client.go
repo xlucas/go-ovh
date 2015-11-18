@@ -68,8 +68,8 @@ func sendRequest(appKey, consumerKey, signature string, timestamp int64, method,
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(req)
-	if resp.StatusCode < 300 {
-		return nil, errors.New(fmt.Sprintf("Unexpected HTTP return code: %s." + resp.Status))
+	if resp.StatusCode >= 300 {
+		return nil, errors.New(fmt.Sprintf("Unexpected HTTP return code (%s).", resp.Status))
 	}
 
 	outBytes, err := ioutil.ReadAll(resp.Body)
@@ -119,7 +119,7 @@ func (c *Client) CallSimple(method, path string, in map[string]interface{}) (map
 	timestamp := time.Now().Add(c.TimeShift).Unix()
 	signature := computeSignature(c.AppSecret, c.ConsumerKey, method, url, inBytes, timestamp)
 
-	outBytes, err = sendRequest(c.AppSecret, c.ConsumerKey, signature, timestamp, method, url, inBytes)
+	outBytes, err = sendRequest(c.AppKey, c.ConsumerKey, signature, timestamp, method, url, inBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (c *Client) Call(method, path string, in interface{}) (interface{}, error) 
 	timestamp := time.Now().Add(c.TimeShift).Unix()
 	signature := computeSignature(c.AppSecret, c.ConsumerKey, method, url, inBytes, timestamp)
 
-	outBytes, err = sendRequest(c.AppSecret, c.ConsumerKey, signature, timestamp, method, url, inBytes)
+	outBytes, err = sendRequest(c.AppKey, c.ConsumerKey, signature, timestamp, method, url, inBytes)
 	if err != nil {
 		return nil, err
 	}
