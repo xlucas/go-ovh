@@ -68,6 +68,9 @@ func sendRequest(appKey, consumerKey, signature string, timestamp int64, method,
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
 	if resp.StatusCode >= 300 {
 		return nil, errors.New(fmt.Sprintf("Unexpected HTTP return code (%s).", resp.Status))
 	}
