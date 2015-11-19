@@ -103,41 +103,15 @@ func (c *Client) PollTimeshift() error {
 	return err
 }
 
-// CallSimple is a helper for OVH API interaction that returns and use string hashmaps
-func (c *Client) CallSimple(method, path string, in map[string]interface{}) (map[string]interface{}, error) {
-	var inBytes, outBytes []byte
-	var err error
-	var out map[string]interface{}
-	if in != nil {
-		inBytes, err = json.Marshal(in)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	url := c.Endpoint + path
-	timestamp := time.Now().Add(c.TimeShift).Unix()
-	signature := computeSignature(c.AppSecret, c.ConsumerKey, method, url, inBytes, timestamp)
-
-	outBytes, err = sendRequest(c.AppKey, c.ConsumerKey, signature, timestamp, method, url, inBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	json.Unmarshal(outBytes, &out)
-	return out, err
-}
-
 // Call is a helper for OVH API interaction that returns and use interfaces
-func (c *Client) Call(method, path string, in interface{}) (interface{}, error) {
+func (c *Client) Call(method, path string, in interface{}, out interface{}) error {
 	var inBytes, outBytes []byte
 	var err error
-	var out interface{}
 	if in != nil {
 		inBytes, err = json.Marshal(in)
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	url := c.Endpoint + path
@@ -146,9 +120,9 @@ func (c *Client) Call(method, path string, in interface{}) (interface{}, error) 
 
 	outBytes, err = sendRequest(c.AppKey, c.ConsumerKey, signature, timestamp, method, url, inBytes)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	json.Unmarshal(outBytes, &out)
-	return out, err
+	return nil
 }
