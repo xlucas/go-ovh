@@ -86,7 +86,7 @@ func sendRequest(appKey, consumerKey, signature string, timestamp int64, method,
 // PollTimeshift calculates the difference between
 // local and remote system time through a call to
 // the API. It may be useful to call this function
-// to avoid the signature to be rejected due to
+// to avoid signatures to be rejected due to
 // timeshift or network delay.
 func (c *Client) PollTimeshift() error {
 	sysTime := time.Now()
@@ -106,7 +106,9 @@ func (c *Client) PollTimeshift() error {
 	return err
 }
 
-// Call is a helper for OVH API interaction that returns and use interfaces
+// Call sends a request to the OVH API and returns response content.
+// Input and output json processing will leverage json
+// marshalling/unmarshalling of the specified interfaces.
 func (c *Client) Call(method, path string, in interface{}, out interface{}) error {
 	var inBytes, outBytes []byte
 	var err error
