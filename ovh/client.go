@@ -110,8 +110,10 @@ func (c *Client) PollTimeshift() error {
 // Input and output json processing will leverage json
 // marshalling/unmarshalling of the specified interfaces.
 func (c *Client) Call(method, path string, in interface{}, out interface{}) error {
-	var inBytes, outBytes []byte
-	var err error
+	var (
+		inBytes, outBytes []byte
+		err               error
+	)
 	if in != nil {
 		inBytes, err = json.Marshal(in)
 	}
