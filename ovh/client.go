@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -31,23 +31,25 @@ type Client struct {
 	ConsumerKey string
 	Endpoint    string
 	TimeShift   time.Duration
+	Debug       bool
 }
 
 // NewClient builds up a new client link to the specified endpoint
 // with given authentication information and no timeshift.
-func NewClient(endpoint, ak, as, ck string) *Client {
+func NewClient(endpoint, ak, as, ck string, debug bool) *Client {
 	return &Client{
 		AppKey:      ak,
 		AppSecret:   as,
 		ConsumerKey: ck,
 		Endpoint:    endpoint,
 		TimeShift:   0,
+		Debug:       debug,
 	}
 }
 
 func computeSignature(appSecret, consumerKey, method, url string, body []byte, timestamp int64) string {
 	hasher := sha1.New()
-	pattern := fmt.Sprintf("%s+%s+%s+%s+%x+%d",
+	pattern := fmt.Sprintf("%s+%s+%s+%s+%s+%d",
 		appSecret,
 		consumerKey,
 		method,
@@ -60,6 +62,9 @@ func computeSignature(appSecret, consumerKey, method, url string, body []byte, t
 
 func sendRequest(appKey, consumerKey, signature string, timestamp int64, method, url string, body []byte) ([]byte, error) {
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("X-Ovh-Application", appKey)
 	req.Header.Add("X-Ovh-Consumer", consumerKey)
@@ -71,14 +76,15 @@ func sendRequest(appKey, consumerKey, signature string, timestamp int64, method,
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		return nil, errors.New(fmt.Sprintf("Unexpected HTTP return code (%s).", resp.Status))
-	}
 
 	outBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("Unexpected HTTP return code (%s : %s).", resp.Status, outBytes)
 	}
 
 	return outBytes, err
@@ -126,11 +132,26 @@ func (c *Client) Call(method, path string, in interface{}, out interface{}) erro
 	timestamp := time.Now().Add(c.TimeShift).Unix()
 	signature := computeSignature(c.AppSecret, c.ConsumerKey, method, url, inBytes, timestamp)
 
+	if c.Debug {
+		log.Printf("Method = %s", method)
+		log.Printf("URL = %s", url)
+		log.Printf("Timestamp = %d", timestamp)
+		log.Printf("Signature = %s", signature)
+		log.Printf("Body = %s", inBytes)
+	}
+
 	outBytes, err = sendRequest(c.AppKey, c.ConsumerKey, signature, timestamp, method, url, inBytes)
 	if err != nil {
 		return err
 	}
 
-	json.Unmarshal(outBytes, &out)
+	err = json.Unmarshal(outBytes, &out)
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+func (c *Client) SetDebug(debug bool) {
+	c.Debug = debug
 }
